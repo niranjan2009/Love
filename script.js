@@ -10,7 +10,237 @@ const nextArrow = document.getElementById("nextArrow");
 const scrollHint = document.getElementById("scrollHint");
 const countdownMusic = document.getElementById("countdownMusic");
 
+const isSmall = window.matchMedia("(max-width: 900px)").matches; // phones / small tablets
 let opened = false;
+let experienceStarted = false; // becomes true after "Tap to open" on the loader
+let typingStarted = false;
+
+function safePlay(a) {
+    if (!a) return;
+    const p = a.play();
+    if (p && p.catch) p.catch(() => {});
+}
+
+/* =========================================================
+   LOVE PRELOADER - "Loading our memories"
+   Loads every image + audio (+ fonts) first, then waits for a
+   tap. The tap also unlocks all sounds for phones.
+========================================================= */
+const BASE_ASSETS = [
+    "assets/background.jpg",
+    "assets/envelope-bottom.png",
+    "assets/envelope-flap.png",
+    "assets/paper.png",
+    "assets/wax-seal.png",
+    "assets/petal.png",
+    "assets/music.mp3",
+    "assets/seal-break.mp3",
+    "assets/open.mp3",
+    "assets/heart-music.mp3",
+    "assets/countdown.mp3"
+];
+
+const LOADER_MSGS = [
+    "Gathering our first smiles…",
+    "Pressing rose petals…",
+    "Tuning our song…",
+    "Folding every little memory…",
+    "Sealing the envelope with love…"
+];
+
+function buildLoader() {
+    let el = document.getElementById("loader");
+    if (el) return el;
+    const heart = "M50 84 C18 60 4 44 4 26 C4 13 14 4 27 4 C37 4 45 9 50 17 C55 9 63 4 73 4 C86 4 96 13 96 26 C96 44 82 60 50 84 Z";
+    el = document.createElement("div");
+    el.id = "loader";
+    el.innerHTML =
+        '<div class="loader-floaters"></div>' +
+        '<div class="loader-stage">' +
+          '<div class="loader-heart">' +
+            '<svg viewBox="0 0 100 90" aria-hidden="true">' +
+              '<defs><clipPath id="heartClip"><path d="' + heart + '"/></clipPath></defs>' +
+              '<g clip-path="url(#heartClip)"><rect class="heart-fill" x="0" y="0" width="100" height="90"/></g>' +
+              '<path class="heart-outline" d="' + heart + '"/>' +
+            '</svg>' +
+            '<div class="loader-percent">0%</div>' +
+          '</div>' +
+          '<div class="loader-title">Loading our memories…</div>' +
+          '<div class="loader-msg"></div>' +
+          '<div class="loader-bar"><i></i></div>' +
+          '<button id="loaderBtn" type="button">Tap to open 💌</button>' +
+        '</div>';
+    document.body.appendChild(el);
+    return el;
+}
+
+(function loveLoader() {
+    const loader = buildLoader();
+    const oldPreloader = document.getElementById("preloader"); // replaced by this loader
+    if (oldPreloader) oldPreloader.remove();
+
+    const pctEl = loader.querySelector(".loader-percent");
+    const msgEl = loader.querySelector(".loader-msg");
+    const btn = loader.querySelector("#loaderBtn");
+    const floaters = loader.querySelector(".loader-floaters");
+
+    /* ---- build the asset list (known files + anything found in the HTML) ---- */
+    const abs = s => new URL(s, location.href).href;
+    const urls = new Set(BASE_ASSETS.map(abs));
+    document.querySelectorAll("img[src], audio[src], audio source[src]").forEach(n => {
+        const s = n.getAttribute("src");
+        if (s && !s.startsWith("data:") && !s.startsWith("blob:")) urls.add(abs(s));
+    });
+    const list = Array.from(urls);
+    const isAudioFile = u => /\.(mp3|wav|ogg|m4a|aac)(\?|#|$)/i.test(u);
+
+    const prog = new Array(list.length + 1).fill(0); // last slot = fonts
+    let target = 0, shown = 0, lastMove = Date.now(), ready = false, forced = false;
+
+    function setP(i, v) {
+        prog[i] = Math.max(prog[i], Math.min(1, v));
+        target = forced ? 1 : prog.reduce((a, b) => a + b, 0) / prog.length;
+        lastMove = Date.now();
+    }
+
+    /* ---- images: load + decode ---- */
+    function loadImage(u, i) {
+        return new Promise(res => {
+            const img = new Image();
+            const done = () => { setP(i, 1); res(); };
+            img.onload = () => {
+                (img.decode ? img.decode() : Promise.resolve()).catch(() => {}).then(done);
+            };
+            img.onerror = done; // never get stuck on a missing file
+            img.src = u;
+        });
+    }
+
+    /* ---- audio: download fully (works even where phones block audio preload),
+            then hand the audio elements an in-memory copy ---- */
+    const srcOf = a => {
+        const s = a.getAttribute("src") || (a.querySelector("source") && a.querySelector("source").getAttribute("src"));
+        return s ? abs(s) : null;
+    };
+
+    function bindAudio(u, blobUrl) {
+        document.querySelectorAll("audio").forEach(a => {
+            if (srcOf(a) === u && a.paused && a.currentTime === 0) {
+                a.src = blobUrl;
+                a.load();
+            }
+        });
+    }
+
+    function loadAudio(u, i) {
+        return fetch(u)
+            .then(res => {
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                const total = +res.headers.get("Content-Length") || 0;
+                const type = res.headers.get("Content-Type") || "audio/mpeg";
+                if (!res.body || !res.body.getReader || !total) return res.blob();
+                const reader = res.body.getReader();
+                const chunks = [];
+                let got = 0;
+                const pump = () => reader.read().then(r => {
+                    if (r.done) return new Blob(chunks, { type });
+                    chunks.push(r.value);
+                    got += r.value.length;
+                    setP(i, Math.min(0.98, got / total));
+                    return pump();
+                });
+                return pump();
+            })
+            .then(blob => bindAudio(u, URL.createObjectURL(blob)))
+            .catch(() => {}) // audio will simply load normally later
+            .then(() => setP(i, 1));
+    }
+
+    list.forEach((u, i) => { isAudioFile(u) ? loadAudio(u, i) : loadImage(u, i); });
+
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => setP(list.length, 1), () => setP(list.length, 1));
+    } else {
+        setP(list.length, 1);
+    }
+
+    /* ---- floating hearts behind the loader ---- */
+    const heartsTimer = setInterval(() => {
+        const h = document.createElement("span");
+        h.className = "lh";
+        h.textContent = "\u2665\uFE0E";
+        h.style.left = Math.random() * 100 + "%";
+        h.style.fontSize = (12 + Math.random() * 18) + "px";
+        h.style.animationDuration = (5 + Math.random() * 5) + "s";
+        floaters.appendChild(h);
+        setTimeout(() => h.remove(), 10500);
+    }, 450);
+
+    /* ---- message swapper ---- */
+    let msgI = -1;
+    function setMsg(t) {
+        msgEl.classList.add("swap");
+        setTimeout(() => { msgEl.textContent = t; msgEl.classList.remove("swap"); }, 350);
+    }
+
+    /* ---- progress loop ---- */
+    function tick() {
+        if (ready) return;
+        // safety: if nothing moved for 12s (slow data / blocked file), let her in anyway
+        if (!forced && Date.now() - lastMove > 12000) { forced = true; target = 1; }
+
+        shown = Math.min(target, shown + Math.max((target - shown) * 0.08, 0.003));
+        loader.style.setProperty("--p", shown.toFixed(4));
+        pctEl.textContent = Math.round(shown * 100) + "%";
+
+        const mi = Math.min(LOADER_MSGS.length - 1, Math.floor(shown * LOADER_MSGS.length));
+        if (mi !== msgI) { msgI = mi; setMsg(LOADER_MSGS[mi]); }
+
+        if (shown >= 0.999 && target > 0.9999) {
+            ready = true;
+            loader.style.setProperty("--p", "1");
+            pctEl.textContent = "100%";
+            setTimeout(() => setMsg("Every memory is ready ♥"), 400);
+            loader.classList.add("ready");
+            setTimeout(() => { try { btn.focus({ preventScroll: true }); } catch (e) {} }, 900);
+        } else {
+            requestAnimationFrame(tick);
+        }
+    }
+    requestAnimationFrame(tick);
+
+    /* ---- the tap: unlock every sound (needed on phones) and open the page ---- */
+    function unlockAudio() {
+        [bgMusic, heartMusic, sealSound, openSound, countdownMusic].forEach(a => {
+            if (!a) return;
+            a.muted = true;
+            const reset = () => { a.pause(); a.currentTime = 0; a.muted = false; };
+            const p = a.play();
+            if (p && p.then) p.then(reset).catch(() => { a.muted = false; });
+            else reset();
+        });
+    }
+
+    function enterExperience() {
+        if (experienceStarted) return;
+        experienceStarted = true;
+        unlockAudio();
+        loader.classList.add("leaving");
+
+        const box = document.querySelector(".container");
+        if (box && box.animate) {
+            box.animate(
+                [
+                    { transform: "translateY(50px)", opacity: 0 },
+                    { transform: "translateY(0)", opacity: 1 }
+                ],
+                { duration: 1400, delay: 500, easing: "ease-out", fill: "backwards" }
+            );
+        }
+        setTimeout(() => { clearInterval(heartsTimer); loader.remove(); }, 1800);
+    }
+    btn.addEventListener("click", enterExperience);
+})();
 
 /* ==================
    CLICK TO OPEN
@@ -18,19 +248,19 @@ let opened = false;
 wrapper.addEventListener("click", openEnvelope);
 
 function openEnvelope() {
-    if (opened) return;
+    if (opened || !experienceStarted) return;
     opened = true;
     wrapper.classList.add("open");
 
     if (sealSound) {
         sealSound.currentTime = 0;
-        sealSound.play();
+        safePlay(sealSound);
     }
 
     setTimeout(() => {
         if (openSound) {
             openSound.currentTime = 0;
-            openSound.play();
+            safePlay(openSound);
         }
     }, 500);
 
@@ -45,13 +275,19 @@ function openEnvelope() {
         }
     }, 1200);
 
+    // typewriter starts here (works for click, tap and Enter)
+    if (!typingStarted) {
+        typingStarted = true;
+        setTimeout(typeWriter, 1800);
+    }
+
     letter.scrollTop = 0;
 }
 
 document.querySelectorAll("img").forEach(img => img.draggable = false);
 
 document.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") openEnvelope();
+    if (e.key === "Enter" && experienceStarted) openEnvelope();
 });
 
 letter.addEventListener("scroll", () => {
@@ -59,76 +295,6 @@ letter.addEventListener("scroll", () => {
     const progress = letter.scrollTop / maxScroll;
     letter.style.boxShadow = `0 20px 50px rgba(0,0,0,.45), 0 0 ${progress * 60}px rgba(255, 180, 180,.35)`;
 });
-
-const preload = ["assets/background.jpg", "assets/envelope-bottom.png", "assets/envelope-flap.png", "assets/paper.png", "assets/wax-seal.png", "assets/petal.png"];
-preload.forEach(src => { const img = new Image(); img.src = src; });
-
-/* =========================================================
-   ABSOLUTE ASSET PRE-LOADER (Waits for Audio & Images)
-========================================================= */
-const assetsToLoad = [
-    "assets/background.jpg",
-    "assets/envelope-bottom.png",
-    "assets/envelope-flap.png",
-    "assets/paper.png",
-    "assets/wax-seal.png",
-    "assets/petal.png",
-    "assets/music.mp3",
-    "assets/seal-break.mp3",
-    "assets/open.mp3",
-    "assets/heart-music.mp3",
-    "assets/countdown.mp3"
-];
-
-let loadedCount = 0;
-const preloader = document.getElementById("preloader");
-
-function assetLoaded() {
-    loadedCount++;
-    // When all files are successfully loaded
-    if (loadedCount >= assetsToLoad.length) {
-        startExperience();
-    }
-}
-
-function startExperience() {
-    setTimeout(() => {
-        preloader.style.opacity = "0"; // Fade out
-        setTimeout(() => {
-            preloader.style.display = "none"; // Remove from screen
-            wrapper.animate([
-                { transform: "translateY(50px)", opacity: 0 },
-                { transform: "translateY(0)", opacity: 1 }
-            ], { duration: 1200, easing: "ease-out" });
-        }, 1000);
-    }, 1000);
-}
-
-// Loop through the list and force the browser to load them
-assetsToLoad.forEach(src => {
-    if (src.endsWith(".mp3")) {
-        const audio = new Audio();
-        audio.src = src;
-        audio.addEventListener("canplaythrough", assetLoaded, { once: true });
-        audio.load();
-    } else {
-        const img = new Image();
-        img.src = src;
-        img.onload = assetLoaded;
-        img.onerror = assetLoaded; // Prevents getting stuck if a file fails
-    }
-});
-
-// SAFETY FALLBACK: Mobile browsers sometimes block background audio loading to save data.
-// If 6 seconds pass and it's still loading, we force it to open anyway so she doesn't get stuck.
-setTimeout(() => {
-    if (loadedCount < assetsToLoad.length) {
-        loadedCount = assetsToLoad.length;
-        startExperience();
-    }
-}, 6000);
-
-wrapper.addEventListener("touchstart", openEnvelope);
 
 const particleContainer = document.getElementById("particles");
 function createParticle() {
@@ -142,7 +308,7 @@ function createParticle() {
     particleContainer.appendChild(p);
     setTimeout(() => p.remove(), 15000);
 }
-setInterval(createParticle, 180);
+setInterval(createParticle, isSmall ? 350 : 180);
 
 const petalContainer = document.getElementById("petals");
 function createPetal() {
@@ -157,7 +323,7 @@ function createPetal() {
     petalContainer.appendChild(petal);
     setTimeout(() => petal.remove(), 16000);
 }
-setInterval(createPetal, 600);
+setInterval(createPetal, isSmall ? 900 : 600);
 
 
 /* ============================
@@ -184,8 +350,8 @@ function typeWriter() {
                 index++;
             }
             textContainer.innerHTML += tag;
-            typeWriter(); // Instantly fire next character so there's no delay for tags
-            
+            typeWriter(); // no delay for tags
+
         // 2. Check if we hit an HTML symbol code (like &amp;)
         } else if (char === '&') {
             let entity = "";
@@ -198,14 +364,14 @@ function typeWriter() {
                 index++;
             }
             textContainer.innerHTML += entity;
-            typeWriter(); // Instantly fire next character
-            
+            typeWriter();
+
         // 3. Normal text characters type out slowly
-} else {
-  textContainer.innerHTML += char;
-  index++;
-  setTimeout(typeWriter, 20); 
-}
+        } else {
+            textContainer.innerHTML += char;
+            index++;
+            setTimeout(typeWriter, 20);
+        }
     } else {
         // Show "(Scroll Down)" hint once the typewriter effect finishes completely
         if (scrollHint) {
@@ -213,10 +379,6 @@ function typeWriter() {
         }
     }
 }
-
-wrapper.addEventListener("click", () => {
-    if (index === 0) setTimeout(typeWriter, 1800);
-});
 
 
 /* ============================
@@ -269,20 +431,20 @@ setInterval(createHeart, 2500);
 ========================================================= */
 
 nextArrow.addEventListener("click", () => {
-  document.body.classList.add("particle-mode");
-  setTimeout(startParticleAnimation, 1200);
-  
-  // 1. Pause the original background music
-  if (bgMusic) {
-    bgMusic.pause();
-  }
-  
-  // 2. Play the new countdown music
-  if (countdownMusic) {
-    countdownMusic.volume = 0.25; // Adjust this number to change the volume
-    countdownMusic.currentTime = 0;
-    countdownMusic.play().catch(() => console.log("Music blocked by browser."));
-  }
+    document.body.classList.add("particle-mode");
+    setTimeout(startParticleAnimation, 1200);
+
+    // 1. Pause the original background music
+    if (bgMusic) {
+        bgMusic.pause();
+    }
+
+    // 2. Play the new countdown music
+    if (countdownMusic) {
+        countdownMusic.volume = 0.25; // (phones ignore volume - they use the device volume)
+        countdownMusic.currentTime = 0;
+        countdownMusic.play().catch(() => console.log("Music blocked by browser."));
+    }
 });
 
 const canvas = document.getElementById('animationCanvas');
@@ -296,8 +458,8 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-const chars = ['♥']; 
-const textParticles = []; 
+const chars = ['♥'];
+const textParticles = [];
 let isHeartPhase = false;
 let heartTime = 0;
 let hasBurst = false;
@@ -349,24 +511,23 @@ class TextParticle {
     }
 
     draw(ctx) {
-    if (!this.isActive) return;
+        if (!this.isActive) return;
 
-    // 1. Give each particle a random starting timer so they don't all blink at the exact same time
-    if (!this.lastFlash) {
-      this.lastFlash = Date.now() - Math.floor(Math.random() * 200);
+        // random start timer so particles don't all blink together
+        if (!this.lastFlash) {
+            this.lastFlash = Date.now() - Math.floor(Math.random() * 200);
+        }
+
+        // new random colour every 200ms (colour string cached = faster on phones)
+        if (!this.fill || Date.now() - this.lastFlash > 200) {
+            this.hue = Math.floor(Math.random() * 360);
+            this.fill = `hsl(${this.hue}, 100%, 60%)`;
+            this.lastFlash = Date.now();
+        }
+
+        ctx.fillStyle = this.fill;
+        ctx.fillText(this.char, this.x, this.y);
     }
-
-    // 2. Check if 300 milliseconds have passed. If so, pick a new random color!
-    if (Date.now() - this.lastFlash > 200) {
-      this.hue = Math.floor(Math.random() * 360);
-      this.lastFlash = Date.now();
-    }
-
-    // 3. Apply the color
-    ctx.fillStyle = `hsl(${this.hue}, 100%, 60%)`;
-    ctx.font = '11px Courier New';
-    ctx.fillText(this.char, this.x, this.y);
-  }
 }
 
 function getTextPoints(text, fontSize) {
@@ -374,7 +535,7 @@ function getTextPoints(text, fontSize) {
     const offCtx = offCanvas.getContext('2d');
     offCanvas.width = width;
     offCanvas.height = height;
-    
+
     offCtx.fillStyle = 'black';
     offCtx.fillRect(0, 0, width, height);
     offCtx.fillStyle = 'white';
@@ -385,15 +546,15 @@ function getTextPoints(text, fontSize) {
 
     const imageData = offCtx.getImageData(0, 0, width, height).data;
     const points = [];
-    const step = 8; 
-    
+    const step = 8;
+
     for (let y = 0; y < height; y += step) {
         for (let x = 0; x < width; x += step) {
             const index = (y * width + x) * 4;
             if (imageData[index] > 128) {
-                points.push({ 
-                    x: x + (Math.random() - 0.5) * 4, 
-                    y: y + (Math.random() - 0.5) * 4 
+                points.push({
+                    x: x + (Math.random() - 0.5) * 4,
+                    y: y + (Math.random() - 0.5) * 4
                 });
             }
         }
@@ -403,17 +564,20 @@ function getTextPoints(text, fontSize) {
 
 function getHeartPoints() {
     const points = [];
-    const scale = Math.min(width, height) / 50; 
+    const scale = Math.min(width, height) / 50;
     const cx = width / 2;
-    const cy = height / 2 - 20; 
+    const cy = height / 2 - 20;
+    const small = width < 700;            // phones: fewer, tighter particles
+    const perStep = small ? 3 : 5;
+    const jitter = small ? 12 : 20;
 
     for (let t = 0; t < Math.PI * 2; t += 0.02) {
         const x = 16 * Math.pow(Math.sin(t), 3);
         const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
-        for(let i = 0; i < 5; i++) {
+        for (let i = 0; i < perStep; i++) {
             points.push({
-                x: cx + x * scale + (Math.random() - 0.5) * 20,
-                y: cy + y * scale + (Math.random() - 0.5) * 20
+                x: cx + x * scale + (Math.random() - 0.5) * jitter,
+                y: cy + y * scale + (Math.random() - 0.5) * jitter
             });
         }
     }
@@ -443,7 +607,7 @@ function explode() {
     textParticles.forEach(p => {
         if (p.isActive) {
             const angle = Math.random() * Math.PI * 2;
-            const force = 15 + Math.random() * 35; 
+            const force = 15 + Math.random() * 35;
             p.vx = Math.cos(angle) * force;
             p.vy = Math.sin(angle) * force;
             p.isExploding = true;
@@ -460,11 +624,11 @@ function startFallingHearts() {
         heart.style.fontSize = (15 + Math.random() * 20) + "px";
         heart.style.animationDuration = (3 + Math.random() * 3) + "s";
         document.body.appendChild(heart);
-        
+
         setTimeout(() => {
             heart.remove();
         }, 6000);
-    }, 100); 
+    }, isSmall ? 220 : 100);
 }
 
 canvas.addEventListener("click", () => {
@@ -473,19 +637,19 @@ canvas.addEventListener("click", () => {
         document.body.classList.remove("heart-ready");
         explode();
         startFallingHearts();
-        
+
         if (bgMusic) bgMusic.pause();
         if (countdownMusic) {
             countdownMusic.pause();
             countdownMusic.currentTime = 0;
         }
         if (heartMusic) {
-            heartMusic.volume = 0.5; 
-            heartMusic.currentTime = 0; 
+            heartMusic.volume = 0.5;
+            heartMusic.currentTime = 0;
             heartMusic.play().catch(() => console.log("Heart music blocked."));
         }
 
-        // ---> NEW: Show the question 4 seconds after the heart bursts <---
+        // Show the question 4 seconds after the heart bursts
         setTimeout(() => {
             document.getElementById("loveQuestion").classList.add("show");
         }, 4000);
@@ -493,14 +657,14 @@ canvas.addEventListener("click", () => {
 });
 
 const sequence = [
-{ type: 'text', val: '3', color: '#FFD700' },    // Gold
-{ type: 'text', val: '2', color: '#FF8C00' },    // Dark Orange
-{ type: 'text', val: '1', color: '#FF69B4' },    // Hot Pink
-{ type: 'text', val: 'You', color: '#00FFFF' },  // Cyan / Bright Blue
-{ type: 'text', val: 'Are', color: '#98FB98' },  // Mint Green
-{ type: 'text', val: 'My', color: '#DDA0DD' },   // Plum / Light Purple
-{ type: 'text', val: 'Love', color: '#FF3333' }, // Bright Red
-{ type: 'heart', color: '#ff66b2' }              // (Kept the original pink for the heart shape)
+    { type: 'text', val: '3', color: '#FFD700' },    // Gold
+    { type: 'text', val: '2', color: '#FF8C00' },    // Dark Orange
+    { type: 'text', val: '1', color: '#FF69B4' },    // Hot Pink
+    { type: 'text', val: 'You', color: '#00FFFF' },  // Cyan / Bright Blue
+    { type: 'text', val: 'Are', color: '#98FB98' },  // Mint Green
+    { type: 'text', val: 'My', color: '#DDA0DD' },   // Plum / Light Purple
+    { type: 'text', val: 'Love', color: '#FF3333' }, // Bright Red
+    { type: 'heart', color: '#ff66b2' }
 ];
 
 let currentIndex = 0;
@@ -511,23 +675,30 @@ function nextSequence() {
     let targets = [];
 
     if (current.type === 'text') {
-        const fontSize = Math.min(width, height) * 0.45; 
+        let fontSize = Math.min(width, height) * 0.45;
+
+        // shrink the word if it would run off a narrow phone screen
+        const mctx = document.createElement('canvas').getContext('2d');
+        mctx.font = `bold ${fontSize}px Arial`;
+        const tw = mctx.measureText(current.val).width;
+        if (tw > width * 0.9) fontSize *= (width * 0.9) / tw;
+
         targets = getTextPoints(current.val, fontSize);
         updateTargets(targets, current.color);
-        
+
         setTimeout(() => {
             explode();
             setTimeout(() => {
                 currentIndex++;
                 nextSequence();
-            }, 700); 
-        }, 1400); 
-        
+            }, 700);
+        }, 1400);
+
     } else if (current.type === 'heart') {
         targets = getHeartPoints();
-        updateTargets(targets, current.color); // fixed parameter assignment syntax
+        updateTargets(targets, current.color);
         isHeartPhase = true;
-        
+
         setTimeout(() => {
             document.body.classList.add("heart-ready");
         }, 1000);
@@ -539,21 +710,22 @@ function animateParticles() {
     ctx.fillRect(0, 0, width, height);
 
     if (isHeartPhase) {
-        heartTime += 0.08; 
-        
+        heartTime += 0.08;
+
         if (!hasBurst) {
             ctx.fillStyle = '#ffb3d9';
-            ctx.font = 'bold 26px Courier New';
+            ctx.font = `bold ${Math.min(26, width / 18)}px Courier New`;
             ctx.textAlign = 'center';
             ctx.fillText("I LOVE YOU SANDHIYA ♥", width / 2, height / 2);
-            
-            // Instruction 3: Low-opacity "(Tap Here)" text inside the heart, just beneath her name
-            ctx.fillStyle = 'rgba(255, 179, 217, 0.45)'; // Low opacity soft pink
+
+            // Low-opacity "(Tap Here)" text inside the heart, just beneath her name
+            ctx.fillStyle = 'rgba(255, 179, 217, 0.45)';
             ctx.font = '13px Courier New';
             ctx.fillText("(Tap Here)", width / 2, (height / 2) + 30);
         }
     }
 
+    ctx.font = '11px Courier New'; // set once per frame instead of once per particle
     textParticles.forEach(p => {
         p.update();
         p.draw(ctx);
@@ -574,37 +746,48 @@ function startParticleAnimation() {
 const btnNo = document.getElementById("btnNo");
 const btnYes = document.getElementById("btnYes");
 
+let noX = 0, noY = 0;        // current jump offset
+let noRest = null;           // button's resting centre (measured once)
+window.addEventListener("resize", () => { noRest = null; noX = 0; noY = 0; });
+
 function moveNoButton(e) {
-    e.preventDefault(); 
-    
-    // Calculates a wider random jump
-    const x = Math.random() * 300 - 150; 
-    const y = Math.random() * 300 - 150; 
-    
-    // Adds a random tilt/rotation so it looks like it's tumbling away
-    const rotation = Math.random() * 40 - 20; 
-    
-    // Moves it, rotates it, and shrinks it slightly so it looks intimidated!
-    btnNo.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(0.85)`;
-    
-    // Makes it fade out slightly every time she tries to catch it
+    e.preventDefault();
+
+    // measure where the button sits when it is NOT displaced
+    if (!noRest) {
+        const r = btnNo.getBoundingClientRect();
+        noRest = { x: r.left + r.width / 2 - noX, y: r.top + r.height / 2 - noY };
+    }
+    const w = btnNo.offsetWidth, h = btnNo.offsetHeight, m = 12;
+
+    // same ±150px jump as before, but never leaves the screen (important on phones)
+    const loX = Math.max(-150, m + w / 2 - noRest.x);
+    const hiX = Math.min(150, window.innerWidth - m - w / 2 - noRest.x);
+    const loY = Math.max(-150, m + h / 2 - noRest.y);
+    const hiY = Math.min(150, window.innerHeight - m - h / 2 - noRest.y);
+
+    noX = loX + Math.random() * Math.max(0, hiX - loX);
+    noY = loY + Math.random() * Math.max(0, hiY - loY);
+
+    // random tilt so it looks like it's tumbling away
+    const rotation = Math.random() * 40 - 20;
+
+    btnNo.style.transform = `translate(${noX}px, ${noY}px) rotate(${rotation}deg) scale(0.85)`;
     btnNo.style.opacity = "0.7";
 }
 
-// Triggers when the mouse hovers over it
+// Mouse hover on laptop
 btnNo.addEventListener("mouseover", moveNoButton);
-// Triggers when a finger tries to tap it on a phone
-btnNo.addEventListener("touchstart", moveNoButton);
+// Finger tap on phone
+btnNo.addEventListener("touchstart", moveNoButton, { passive: false });
 
 // What happens when she finally clicks YES
 btnYes.addEventListener("click", () => {
     const questionBox = document.getElementById("loveQuestion");
-    
-    // Change the text to a happy message
+
     questionBox.innerHTML = `<h2>Love you too ma! ❤️<br>You are my everything.</h2>`;
-    
-    // Spawn a massive burst of extra hearts
-    for(let i = 0; i < 20; i++) {
+
+    for (let i = 0; i < 20; i++) {
         setTimeout(createHeart, i * 150);
     }
 });
