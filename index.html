@@ -2,13 +2,95 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>To My Dear Sandhiya 💝</title> 
+
+    <!-- NEW: faster font loading on mobile networks -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <link rel="stylesheet" href="style.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Great+Vibes&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+
+    <!-- NEW: if JavaScript is blocked, never trap the visitor on the loading screen -->
+    <noscript><style>#preloader{display:none !important}body.pl-lock{overflow:auto !important}</style></noscript>
 </head>
-<body>
+<body class="pl-lock">
+
+    <!-- ========================================== -->
+    <!-- NEW: LOVE PRELOADER  ("Loading our memories") -->
+    <!-- The heart fills up as every image, sound and font really loads -->
+    <!-- ========================================== -->
+    <div id="preloader" role="progressbar" aria-label="Loading our memories" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="pl-glow"></div>
+
+        <div class="pl-floaters" aria-hidden="true">
+            <span class="pl-float" style="--x:8%;  --s:12px; --d:11s; --t:-2s"></span>
+            <span class="pl-float" style="--x:22%; --s:18px; --d:14s; --t:-7s"></span>
+            <span class="pl-float" style="--x:36%; --s:10px; --d:10s; --t:-4s"></span>
+            <span class="pl-float" style="--x:50%; --s:16px; --d:13s; --t:-9s"></span>
+            <span class="pl-float" style="--x:63%; --s:11px; --d:12s; --t:-1s"></span>
+            <span class="pl-float" style="--x:76%; --s:20px; --d:15s; --t:-6s"></span>
+            <span class="pl-float" style="--x:88%; --s:13px; --d:11s; --t:-3s"></span>
+            <span class="pl-float" style="--x:94%; --s:9px;  --d:9s;  --t:-8s"></span>
+        </div>
+
+        <div class="pl-stage">
+
+            <div class="pl-heart-wrap">
+                <svg class="pl-heart" viewBox="0 0 100 90" aria-hidden="true" focusable="false">
+                    <defs>
+                        <clipPath id="plHeartClip">
+                            <path d="M50 85C50 85 6 55 6 28C6 14 17 5 29 5C38 5 46 10 50 18C54 10 62 5 71 5C83 5 94 14 94 28C94 55 50 85 50 85Z"/>
+                        </clipPath>
+                        <linearGradient id="plLiquidGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stop-color="#ff9bbb"/>
+                            <stop offset="1" stop-color="#d81b5a"/>
+                        </linearGradient>
+                    </defs>
+
+                    <!-- empty heart -->
+                    <path class="pl-heart-bg" d="M50 85C50 85 6 55 6 28C6 14 17 5 29 5C38 5 46 10 50 18C54 10 62 5 71 5C83 5 94 14 94 28C94 55 50 85 50 85Z"/>
+
+                    <!-- memories rising inside the heart -->
+                    <g clip-path="url(#plHeartClip)">
+                        <g class="pl-liquid" id="plLiquid">
+                            <path class="pl-wave pl-wave-back"  d="M0 8Q12.5 0 25 8T50 8T75 8T100 8T125 8T150 8T175 8T200 8V110H0Z"/>
+                            <path class="pl-wave pl-wave-front" d="M0 8Q12.5 16 25 8T50 8T75 8T100 8T125 8T150 8T175 8T200 8V110H0Z"/>
+                        </g>
+                    </g>
+
+                    <!-- heart outline -->
+                    <path class="pl-heart-line" d="M50 85C50 85 6 55 6 28C6 14 17 5 29 5C38 5 46 10 50 18C54 10 62 5 71 5C83 5 94 14 94 28C94 55 50 85 50 85Z"/>
+                </svg>
+
+                <div class="pl-percent" aria-hidden="true"><span id="plPercent">0</span><small>%</small></div>
+            </div>
+
+            <h2 class="pl-title">Loading our memories</h2>
+            <p class="pl-whisper" id="plWhisper">Gathering every little moment...</p>
+
+            <!-- Our story, lighting up one chapter at a time -->
+            <div class="pl-timeline" aria-hidden="true">
+                <div class="pl-thread"><div class="pl-thread-fill" id="plThreadFill"></div></div>
+                <ol>
+                    <li data-at="10"><i class="pl-pin"></i><span>6th</span></li>
+                    <li data-at="30"><i class="pl-pin"></i><span>9th</span></li>
+                    <li data-at="55"><i class="pl-pin"></i><span>12th</span></li>
+                    <li data-at="80"><i class="pl-pin"></i><span>College</span></li>
+                    <li data-at="100"><i class="pl-pin"></i><span>Forever</span></li>
+                </ol>
+            </div>
+
+            <!-- Appears only when everything is loaded (also unlocks sound on mobile) -->
+            <button id="plStart" class="pl-start" type="button" hidden>Tap to begin 💌</button>
+        </div>
+    </div>
+    <!-- ========================================== -->
+    <!-- END PRELOADER -->
+    <!-- ========================================== -->
+
     <!-- Background Overlay -->
     <div class="overlay"></div>
     
