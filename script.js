@@ -785,7 +785,7 @@ btnNo.addEventListener("touchstart", moveNoButton, { passive: false });
 btnYes.addEventListener("click", () => {
     const questionBox = document.getElementById("loveQuestion");
 
-    questionBox.innerHTML = `<h2>Love you too ma! ❤️<br>You are my everything!!! -Sandhiya,Call pannu ma, Na unakaaga wait pandren!-</h2>`;
+    questionBox.innerHTML = `<h2>Love you too ma! ❤️<br>You are my everything!!! -Sandhiya Call pannu, Na unakaaga wait pandren!-</h2>`;
 
     for (let i = 0; i < 20; i++) {
         setTimeout(createHeart, i * 150);
