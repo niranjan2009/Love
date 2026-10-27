@@ -659,14 +659,14 @@ canvas.addEventListener("click", () => {
 });
 
 const sequence = [
-    { type: 'text', val: '3', color: '#FFD700' },    // Gold
-    { type: 'text', val: '2', color: '#FF8C00' },    // Dark Orange
-    { type: 'text', val: '1', color: '#FF69B4' },    // Hot Pink
-    { type: 'text', val: 'You', color: '#00FFFF' },  // Cyan / Bright Blue
-    { type: 'text', val: 'Are', color: '#98FB98' },  // Mint Green
-    { type: 'text', val: 'My', color: '#DDA0DD' },   // Plum / Light Purple
-    { type: 'text', val: 'Love', color: '#FF3333' }, // Bright Red
-    { type: 'heart', color: '#ff66b2' }
+  { type: 'text', val: '3', color: '#ff85c1' },    // Soft Glowing Pink
+  { type: 'text', val: '2', color: '#ff66b2' },    // Rose Glowing Pink
+  { type: 'text', val: '1', color: '#ff4da6' },    // Vibrant Glowing Pink
+  { type: 'text', val: 'You', color: '#ff66b2' },  // Glowing Pink
+  { type: 'text', val: 'Are', color: '#ff66b2' },  // Glowing Pink
+  { type: 'text', val: 'My', color: '#ff66b2' },   // Glowing Pink
+  { type: 'text', val: 'Love', color: '#ff4da6' }, // Deep Glowing Pink
+  { type: 'heart', color: '#ff66b2' }              // Glowing Pink Heart
 ];
 
 let currentIndex = 0;
