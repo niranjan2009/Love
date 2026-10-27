@@ -513,16 +513,19 @@ class TextParticle {
    draw(ctx) {
     if (!this.isActive) return;
 
-    // Soft glowing pink pulse (stays strictly in pink shades instead of rainbow disco)
+    // Fast pink heart shades (cached every 250ms = zero lag on phones and laptops)
     if (!this.lastFlash) {
       this.lastFlash = Date.now() - Math.floor(Math.random() * 250);
     }
     if (!this.fill || Date.now() - this.lastFlash > 250) {
-      const lightness = 65 + Math.floor(Math.random() * 18); // 65% to 82% soft-to-bright pink
+      const lightness = 65 + Math.floor(Math.random() * 18); // 65% to 82% pink shades
       this.fill = `hsl(335, 100%, ${lightness}%)`;
       this.lastFlash = Date.now();
     }
 
+    ctx.fillStyle = this.color || this.fill;
+    ctx.fillText(this.char, this.x, this.y);
+  }
     ctx.save();
     ctx.fillStyle = this.color || this.fill;
     ctx.shadowColor = '#ff1493'; // Deep glowing pink aura
