@@ -526,13 +526,6 @@ class TextParticle {
     ctx.fillStyle = this.color || this.fill;
     ctx.fillText(this.char, this.x, this.y);
   }
-    ctx.save();
-    ctx.fillStyle = this.color || this.fill;
-    ctx.shadowColor = '#ff1493'; // Deep glowing pink aura
-    ctx.shadowBlur = 12;          // Glow intensity (increase to 16 for stronger glow)
-    ctx.fillText(this.char, this.x, this.y);
-    ctx.restore();
-  }
 }
 
 function getTextPoints(text, fontSize) {
