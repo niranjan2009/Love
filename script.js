@@ -386,7 +386,7 @@ function typeWriter() {
 ============================ */
 const finalMessage = document.createElement("div");
 finalMessage.className = "final-message";
-finalMessage.innerHTML = "<br><br>I Love You Forever<br><br>Sandhiya";
+finalMessage.innerHTML = "<br><br>I Love You Forever<br><br>XXXXX";
 
 const letterContent = letter.querySelector(".letter-content");
 letterContent.insertBefore(finalMessage, nextArrow);
@@ -716,7 +716,7 @@ function animateParticles() {
             ctx.fillStyle = '#ffb3d9';
             ctx.font = `bold ${Math.min(26, width / 18)}px Courier New`;
             ctx.textAlign = 'center';
-            ctx.fillText("I LOVE YOU SANDHIYA ♥", width / 2, height / 2);
+            ctx.fillText("I LOVE YOU XXXXX ♥", width / 2, height / 2);
 
             // Low-opacity "(Tap Here)" text inside the heart, just beneath her name
             ctx.fillStyle = 'rgba(255, 179, 217, 0.45)';
@@ -785,7 +785,7 @@ btnNo.addEventListener("touchstart", moveNoButton, { passive: false });
 btnYes.addEventListener("click", () => {
     const questionBox = document.getElementById("loveQuestion");
 
-    questionBox.innerHTML = `<h2>Love you too ma! ❤️<br> You are my everything!!! -Sandhiya Call pannu, Na unnoda reply kaga wait pandren! </h2>`;
+    questionBox.innerHTML = `<h2>Love you too! ❤️<br> You are my everything!!! </h2>`;
 
     for (let i = 0; i < 20; i++) {
         setTimeout(createHeart, i * 150);
