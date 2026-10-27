@@ -513,17 +513,19 @@ class TextParticle {
    draw(ctx) {
     if (!this.isActive) return;
 
-    // Fast pink heart shades (cached every 250ms = zero lag on phones and laptops)
+    // random start timer so particles don't all blink together
     if (!this.lastFlash) {
-      this.lastFlash = Date.now() - Math.floor(Math.random() * 250);
+      this.lastFlash = Date.now() - Math.floor(Math.random() * 200);
     }
-    if (!this.fill || Date.now() - this.lastFlash > 250) {
-      const lightness = 65 + Math.floor(Math.random() * 18); // 65% to 82% pink shades
-      this.fill = `hsl(335, 100%, ${lightness}%)`;
+
+    // new random colour every 200ms (colour string cached = faster on phones)
+    if (!this.fill || Date.now() - this.lastFlash > 200) {
+      this.hue = Math.floor(Math.random() * 360);
+      this.fill = `hsl(${this.hue}, 100%, 60%)`;
       this.lastFlash = Date.now();
     }
 
-    ctx.fillStyle = this.color || this.fill;
+    ctx.fillStyle = this.fill;
     ctx.fillText(this.char, this.x, this.y);
   }
 }
@@ -655,16 +657,15 @@ canvas.addEventListener("click", () => {
 });
 
 const sequence = [
-  { type: 'text', val: '3', color: '#ff85c1' },    // Soft Glowing Pink
-  { type: 'text', val: '2', color: '#ff66b2' },    // Rose Glowing Pink
-  { type: 'text', val: '1', color: '#ff4da6' },    // Vibrant Glowing Pink
-  { type: 'text', val: 'You', color: '#ff66b2' },  // Glowing Pink
-  { type: 'text', val: 'Are', color: '#ff66b2' },  // Glowing Pink
-  { type: 'text', val: 'My', color: '#ff66b2' },   // Glowing Pink
-  { type: 'text', val: 'Love', color: '#ff4da6' }, // Deep Glowing Pink
-  { type: 'heart', color: '#ff66b2' }              // Glowing Pink Heart
+  { type: 'text', val: '3', color: '#FFD700' }, // Gold
+  { type: 'text', val: '2', color: '#FF8C00' }, // Dark Orange
+  { type: 'text', val: '1', color: '#FF69B4' }, // Hot Pink
+  { type: 'text', val: 'You', color: '#00FFFF' }, // Cyan / Bright Blue
+  { type: 'text', val: 'Are', color: '#98FB98' }, // Mint Green
+  { type: 'text', val: 'My', color: '#DDA0DD' }, // Plum / Light Purple
+  { type: 'text', val: 'Love', color: '#FF3333' }, // Bright Red
+  { type: 'heart', color: '#ff66b2' }
 ];
-
 let currentIndex = 0;
 
 function nextSequence() {
