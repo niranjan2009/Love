@@ -510,24 +510,26 @@ class TextParticle {
         }
     }
 
-    draw(ctx) {
-        if (!this.isActive) return;
+   draw(ctx) {
+    if (!this.isActive) return;
 
-        // random start timer so particles don't all blink together
-        if (!this.lastFlash) {
-            this.lastFlash = Date.now() - Math.floor(Math.random() * 200);
-        }
-
-        // new random colour every 200ms (colour string cached = faster on phones)
-        if (!this.fill || Date.now() - this.lastFlash > 200) {
-            this.hue = Math.floor(Math.random() * 360);
-            this.fill = `hsl(${this.hue}, 100%, 60%)`;
-            this.lastFlash = Date.now();
-        }
-
-        ctx.fillStyle = this.fill;
-        ctx.fillText(this.char, this.x, this.y);
+    // Soft glowing pink pulse (stays strictly in pink shades instead of rainbow disco)
+    if (!this.lastFlash) {
+      this.lastFlash = Date.now() - Math.floor(Math.random() * 250);
     }
+    if (!this.fill || Date.now() - this.lastFlash > 250) {
+      const lightness = 65 + Math.floor(Math.random() * 18); // 65% to 82% soft-to-bright pink
+      this.fill = `hsl(335, 100%, ${lightness}%)`;
+      this.lastFlash = Date.now();
+    }
+
+    ctx.save();
+    ctx.fillStyle = this.color || this.fill;
+    ctx.shadowColor = '#ff1493'; // Deep glowing pink aura
+    ctx.shadowBlur = 12;          // Glow intensity (increase to 16 for stronger glow)
+    ctx.fillText(this.char, this.x, this.y);
+    ctx.restore();
+  }
 }
 
 function getTextPoints(text, fontSize) {
